@@ -1,7 +1,7 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:mlproject/Service/Image-Picker/image_pick.dart';
+import 'package:mlproject/Service/s3/cdn_s3.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,7 +12,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String? cameraImageFile = "";
-  String? _cameraGalleryFile = "";
+  String? preSignedUrlOfImage = "";
+  bool isAnalyzing = false; 
+  
 
   @override
   Widget build(BuildContext context) {
@@ -21,58 +23,107 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Home Page"),
+        title: const Text(
+          "AI Image Analyzer",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            SizedBox(
-              // color: Colors.amber,
-              width: width,
-              height: height / 2,
-              child: cameraImageFile != ""
-                  ? Image.file(
-                      File(cameraImageFile!),
-                    )
-                  : const Text("No image selected"),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: height * 0.03),
-              child: Row(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blueAccent.shade700, width: 1),
+                ),
+                margin: EdgeInsets.symmetric(horizontal: width * 0.05,vertical: height * 0.03),
+                width: width,
+                height: height / 2.5,
+                child: cameraImageFile != ""
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                          File(cameraImageFile!),
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : const Center(child: Text("No image selected")),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: height * 0.03),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     ElevatedButton(
-                        onPressed: () async {
-                          String? imagePath =
-                              await ImagePickerService().getImageFromCamera();
-                          setState(() {
-                            cameraImageFile = imagePath;
-                          });
-                          debugPrint(cameraImageFile);
-                        },
-                        child: const Text("Capture Camera")),
+                      onPressed: () async {
+                        String? imagePath =
+                            await ImagePickerService().getImageFromCamera();
+          
+                        preSignedUrlOfImage =
+                            await CDNS3Service().uploadFileToS3(File(imagePath!));
+          
+                        setState(() {
+                          cameraImageFile = imagePath;
+                        });
+                        debugPrint(cameraImageFile);
+                        debugPrint(preSignedUrlOfImage);
+                      },
+                      child: const Text("Capture Camera"),
+                    ),
                     ElevatedButton(
-                        onPressed: () async {
-                          String? imagePath =
-                              await ImagePickerService().getImageFromGallery();
-                          setState(() {
-                            imagePath = _cameraGalleryFile;
-                          });
-
-                          debugPrint("Capture Gallery");
-                        },
-                        child: const Text("Capture Gallery")),
-                    // ElevatedButton(
-                    //     onPressed: () async {
-                    //       // String? file =
-                    //       //   await ImagePickerService().getImageFromGallery();
-                    //         debugPrint("analyze");
-                    //     },
-                    //     child: const Text("analyze")),
-                  ]),
-            )
-          ],
+                      onPressed: () async {
+                        String? imagePath =
+                            await ImagePickerService().getImageFromGallery();
+          
+                        preSignedUrlOfImage =
+                            await CDNS3Service().uploadFileToS3(File(imagePath!));
+          
+                        setState(() {
+                          cameraImageFile = imagePath;
+                        });
+                        debugPrint("pre: $preSignedUrlOfImage");
+                        debugPrint("Capture Gallery");
+                      },
+                      child: const Text("Capture Gallery"),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        isAnalyzing = !isAnalyzing; // Show the container when clicked
+                      });
+                    },
+                    child: const Text("Analyze"),
+                  )
+                ],
+              ),
+          
+             
+              if (isAnalyzing)
+                Container(
+                
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                    border:
+                        Border.all(color: Colors.blueAccent.shade700, width: 1),
+                  ),
+                  margin: EdgeInsets.symmetric(horizontal: width * 0.05, vertical: height * 0.03),
+                  width: width,
+                  padding: EdgeInsets.all(height * 0.03),
+                  child: const Text("Text will be appear here"),
+                ),
+            ],
+          ),
         ),
       ),
     );
