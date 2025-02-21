@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:mlproject/Service/Gpt/chat_gpt_service.dart';
 import 'package:mlproject/Service/Image-Picker/image_pick.dart';
 import 'package:mlproject/Service/s3/cdn_s3.dart';
 
@@ -13,8 +14,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String? cameraImageFile = "";
   String? preSignedUrlOfImage = "";
-  bool isAnalyzing = false; 
-  
+  String? chatGptResponse = "";
+  bool isAnalyzing = false;
+  bool isAnalyzingLoadingComplete = false;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +38,11 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                   color: Colors.blue[50],
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blueAccent.shade700, width: 1),
+                  border:
+                      Border.all(color: Colors.blueAccent.shade700, width: 1),
                 ),
-                margin: EdgeInsets.symmetric(horizontal: width * 0.05,vertical: height * 0.03),
+                margin: EdgeInsets.symmetric(
+                    horizontal: width * 0.05, vertical: height * 0.03),
                 width: width,
                 height: height / 2.5,
                 child: cameraImageFile != ""
@@ -61,10 +65,10 @@ class _HomePageState extends State<HomePage> {
                       onPressed: () async {
                         String? imagePath =
                             await ImagePickerService().getImageFromCamera();
-          
-                        preSignedUrlOfImage =
-                            await CDNS3Service().uploadFileToS3(File(imagePath!));
-          
+
+                        preSignedUrlOfImage = await CDNS3Service()
+                            .uploadFileToS3(File(imagePath!));
+
                         setState(() {
                           cameraImageFile = imagePath;
                         });
@@ -77,10 +81,10 @@ class _HomePageState extends State<HomePage> {
                       onPressed: () async {
                         String? imagePath =
                             await ImagePickerService().getImageFromGallery();
-          
-                        preSignedUrlOfImage =
-                            await CDNS3Service().uploadFileToS3(File(imagePath!));
-          
+
+                        preSignedUrlOfImage = await CDNS3Service()
+                            .uploadFileToS3(File(imagePath!));
+
                         setState(() {
                           cameraImageFile = imagePath;
                         });
@@ -96,31 +100,39 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        isAnalyzing = !isAnalyzing; // Show the container when clicked
-                      });
-                    },
-                    child: const Text("Analyze"),
-                  )
+                  if (preSignedUrlOfImage != "")
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() {
+                          isAnalyzingLoadingComplete = true;
+                        });
+                        String text = await ChatGptService()
+                            .getChatGptResponse(preSignedUrlOfImage!);
+                        setState(() {
+                          chatGptResponse = text;
+                          isAnalyzing = true;
+                          isAnalyzingLoadingComplete = false;
+                        });
+                      },
+                      child: isAnalyzingLoadingComplete
+                          ? CircularProgressIndicator(color: Colors.blue, strokeWidth: 2 ) 
+                          : Text("Analyze"),
+                    )
                 ],
               ),
-          
-             
               if (isAnalyzing)
                 Container(
-                
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(12),
                     border:
                         Border.all(color: Colors.blueAccent.shade700, width: 1),
                   ),
-                  margin: EdgeInsets.symmetric(horizontal: width * 0.05, vertical: height * 0.03),
+                  margin: EdgeInsets.symmetric(
+                      horizontal: width * 0.05, vertical: height * 0.03),
                   width: width,
                   padding: EdgeInsets.all(height * 0.03),
-                  child: const Text("Text will be appear here"),
+                  child: Text(chatGptResponse ?? "Loading..."),
                 ),
             ],
           ),
